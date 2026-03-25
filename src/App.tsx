@@ -1113,8 +1113,8 @@ export default function App() {
   const shareReport = ()=>{
     const lines=[`${teamName} · Game Report`,`Formation: ${formation}`,"",
       ...roster.slice().sort((a,b)=>getTotal(b.id)-getTotal(a.id)).map(p=>{
-        const s=stats[p.id], pos=s?Object.entries(s.positions).filter(([_,v])=>v>0).map(([r,sec])=>`${r}:${Math.floor(sec/60)}m`):[];
-        return `${p.name}${numbers[p.id]?` #${numbers[p.id]}`:""}: ${fmtMin(getTotal(p.id))}${pos.length?` (${pos.join(", ")})`:""}`; })
+        const s=stats[p.id], pos=s?Object.entries(s.positions).filter(([_,v])=>v>0).map(([r,sec])=>r+":"+Math.floor(sec/60)+"m"):[];
+        return p.name+(numbers[p.id]?" #"+numbers[p.id]:"")+": "+fmtMin(getTotal(p.id))+(pos.length?" ("+pos.join(", ")+")":""); })
     ].join("\n");
     if(navigator.share)navigator.share({title:"Game Report",text:lines}).catch(()=>{});
     else navigator.clipboard?.writeText(lines).then(()=>alert("Copied!")).catch(()=>alert(lines));
