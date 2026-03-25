@@ -1025,9 +1025,10 @@ export default function App() {
   // ── Show landing page if not logged in ──────────────────────
   if(!appReady) return (
     <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"#0d1117", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:"#4ade80" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign:"center" }}>
-        <div style={{ fontSize:48, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:3, marginBottom:8 }}>⚽ Subby</div>
-        <div style={{ fontSize:12, color:"#4b5563", animation:"pulse 1.5s ease infinite" }}>Loading…</div>
+        <div style={{ fontSize:48, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:3, marginBottom:12 }}>⚽ Subby</div>
+        <div style={{ width:24, height:24, border:"3px solid #21262d", borderTopColor:"#4ade80", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto" }}/>
       </div>
     </div>
   );
