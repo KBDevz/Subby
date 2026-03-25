@@ -489,13 +489,22 @@ function SeasonView({ onClose }) {
 
 // ─── Landing Page ─────────────────────────────────────────────
 function LandingPage({ onLogin, onSignup, sbReady }) {
-  const [view, setView]       = useState("home"); // home | login | signup
+  const [view, setView]       = useState("home");
   const [email, setEmail]     = useState("");
   const [pass, setPass]       = useState("");
   const [name, setName]       = useState("");
   const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent]       = useState(false);
+
+  // Detect invite code in URL
+  const inviteCode = new URLSearchParams(window.location.search).get("invite");
+  useEffect(()=>{
+    if(inviteCode) {
+      lsSet("scm_pending_invite", inviteCode);
+      setView("signup");
+    }
+  },[inviteCode]);
 
   const handleLogin = async () => {
     const sb = getSupabase(); if(!sb){ setError("Service unavailable, try again shortly."); return; }
@@ -638,7 +647,17 @@ function LandingPage({ onLogin, onSignup, sbReady }) {
             ) : (
               <>
                 <div style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>{view==="login" ? "Welcome back" : "Create account"}</div>
-                <div style={{ fontSize:13, color:"#8b949e", marginBottom:24 }}>{view==="login" ? "Log in to access your team" : "Save your team across all devices"}</div>
+                <div style={{ fontSize:13, color:"#8b949e", marginBottom: inviteCode ? 12 : 24 }}>{view==="login" ? "Log in to access your team" : "Save your team across all devices"}</div>
+
+                {inviteCode && (
+                  <div style={{ background:"#4ade8018", border:"1px solid #4ade8044", borderRadius:10, padding:"10px 14px", marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ fontSize:20 }}>🏆</div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:"#4ade80" }}>You've been invited!</div>
+                      <div style={{ fontSize:11, color:"#8b949e" }}>Sign up or log in to join the team</div>
+                    </div>
+                  </div>
+                )}
 
                 {error && <div style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", borderRadius:8, padding:"10px 12px", fontSize:12, color:"#f87171", marginBottom:16 }}>{error}</div>}
 
@@ -699,6 +718,9 @@ export default function App() {
   const [authLoading,setAuthLoading] = useState(false);
   const [cloudSaving,setCloudSaving] = useState(false);
   const [lastSaved,setLastSaved]   = useState(null);
+  const [inviteCode,setInviteCode] = useState(null);  // current team's invite code
+  const [teamOwnerId,setTeamOwnerId] = useState(null); // owner of shared team
+  const [showInviteModal,setShowInviteModal] = useState(false);
   const [appReady,setAppReady]     = useState(false); // true once session check done
 
   // Load Supabase SDK from CDN once
@@ -742,8 +764,43 @@ export default function App() {
   useEffect(()=>{
     if(!user) return;
     const sb=getSupabase(); if(!sb) return;
+
+    // Check if there's a pending invite code in localStorage
+    const pendingInvite = lsGet("scm_pending_invite","");
+
+    if(pendingInvite) {
+      // Join team via invite code
+      sb.from("teams").select("*").eq("invite_code", pendingInvite).single()
+        .then(async ({data, error}) => {
+          if(data && !error) {
+            // Add this user to the team's members array
+            const members = data.members || [];
+            if(!members.includes(user.id)) {
+              await sb.from("teams").update({
+                members: [...members, user.id]
+              }).eq("id", data.id);
+            }
+            // Load the team data
+            setTeamName(data.team_name||"");
+            if(data.player_count) setPC(data.player_count);
+            if(data.names)      setNames(data.names);
+            if(data.numbers)    setNumbers(data.numbers);
+            if(data.notes)      setNotes(data.notes);
+            if(data.formation)  setFormation(data.formation);
+            if(data.custom_formations) setCF(data.custom_formations);
+            if(data.sub_interval) setSIM(data.sub_interval);
+            if(data.auto_sub!=null) setAutoSub(data.auto_sub);
+            setTeamOwnerId(data.user_id);
+            setInviteCode(data.invite_code);
+            lsSet("scm_pending_invite","");
+          }
+        });
+      return;
+    }
+
+    // Normal load — own team first, then check member teams
     sb.from("teams").select("*").eq("user_id",user.id).single()
-      .then(({data,error})=>{
+      .then(async ({data,error})=>{
         if(data&&!error){
           if(data.team_name)  setTeamName(data.team_name);
           if(data.player_count) setPC(data.player_count);
@@ -754,7 +811,28 @@ export default function App() {
           if(data.custom_formations) setCF(data.custom_formations);
           if(data.sub_interval) setSIM(data.sub_interval);
           if(data.auto_sub!=null) setAutoSub(data.auto_sub);
+          setInviteCode(data.invite_code||null);
+          setTeamOwnerId(data.user_id);
           setLastSaved(data.updated_at);
+        } else {
+          // Maybe this user is a member of someone else's team
+          sb.from("teams").select("*").contains("members",[user.id]).single()
+            .then(({data:td})=>{
+              if(td){
+                if(td.team_name)  setTeamName(td.team_name);
+                if(td.player_count) setPC(td.player_count);
+                if(td.names)      setNames(td.names);
+                if(td.numbers)    setNumbers(td.numbers);
+                if(td.notes)      setNotes(td.notes);
+                if(td.formation)  setFormation(td.formation);
+                if(td.custom_formations) setCF(td.custom_formations);
+                if(td.sub_interval) setSIM(td.sub_interval);
+                if(td.auto_sub!=null) setAutoSub(td.auto_sub);
+                setInviteCode(td.invite_code||null);
+                setTeamOwnerId(td.user_id);
+                setLastSaved(td.updated_at);
+              }
+            });
         }
       });
   },[user]);
@@ -781,7 +859,27 @@ export default function App() {
     if(!error) setLastSaved(payload.updated_at);
   },[user,teamName,playerCount,names,numbers,notes,formation,customForms,subIntervalMins,autoSub]);
 
-  const handleLogin = async()=>{
+  const generateInviteLink = async () => {
+    const sb = getSupabase(); if(!sb) return;
+    // Generate a random 8-char code
+    const code = Math.random().toString(36).substring(2,10).toUpperCase();
+    const {error} = await sb.from("teams")
+      .update({ invite_code: code })
+      .eq("user_id", user.id);
+    if(!error) {
+      setInviteCode(code);
+      setShowInviteModal(true);
+    }
+  };
+
+  const shareInviteLink = () => {
+    const url = `${window.location.origin}?invite=${inviteCode}`;
+    if(navigator.share) {
+      navigator.share({ title:"Join my team on Subby", text:`Coach ${teamName} — join my team!`, url });
+    } else {
+      navigator.clipboard?.writeText(url).then(()=>alert("Link copied!"));
+    }
+  };
     const sb=getSupabase(); if(!sb){setAuthError("Supabase not configured.");return;}
     setAuthLoading(true); setAuthError("");
     const {error}=await sb.auth.signInWithPassword({email:authEmail,password:authPass});
@@ -1141,6 +1239,11 @@ export default function App() {
             style={{width:"100%",padding:12,background:"transparent",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,cursor:"pointer",fontWeight:600,marginTop:10}}>
             📊 Season Stats {lsGet("scm_season",[]).length>0?`(${lsGet("scm_season",[]).length} games)`:""}
           </button>
+
+          <button onClick={inviteCode ? ()=>setShowInviteModal(true) : generateInviteLink}
+            style={{width:"100%",padding:12,background:"#7c3aed22",border:"1px solid #7c3aed",borderRadius:12,color:"#a78bfa",fontSize:13,cursor:"pointer",fontWeight:600,marginTop:10}}>
+            👥 Invite a Coach
+          </button>
         </div>
       )}
 
@@ -1399,6 +1502,44 @@ export default function App() {
       {showFB&&<FormationBuilder outfieldCount={outfieldCount} onSave={saveCustomFormation} onClose={()=>setShowFB(false)}/>}
       {pickerPos!==null&&<PickerSheet posIdx={pickerPos} positions={positions} assigned={assigned} roster={roster} numbers={numbers} notes={notes}
         getTotal={getTotal} getStint={getStint} onAssign={handleAssign} onClear={handleClear} onClose={()=>setPickerPos(null)} phase={phase}/>}
+
+      {/* ══ INVITE MODAL ══ */}
+      {showInviteModal&&inviteCode&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setShowInviteModal(false)}>
+          <div style={{background:"#161b22",borderRadius:20,padding:28,width:"100%",maxWidth:400,border:"1px solid #30363d",animation:"sheetUp .22s ease"}} onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:40,marginBottom:10}}>👥</div>
+              <div style={{fontSize:20,fontWeight:800,marginBottom:6}}>Invite a Coach</div>
+              <div style={{fontSize:13,color:"#8b949e",lineHeight:1.6}}>Share this link with your co-coach.<br/>They'll get full access to <strong style={{color:"#e6edf3"}}>{teamName||"your team"}</strong>.</div>
+            </div>
+
+            {/* Link display */}
+            <div style={{background:"#0d1117",border:"1px solid #30363d",borderRadius:10,padding:"12px 14px",marginBottom:16,fontFamily:"monospace",fontSize:12,color:"#a78bfa",wordBreak:"break-all",textAlign:"center"}}>
+              {`${window.location.origin}?invite=${inviteCode}`}
+            </div>
+
+            <button onClick={shareInviteLink}
+              style={{width:"100%",padding:14,background:"#7c3aed",border:"none",borderRadius:12,color:"white",fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:10}}>
+              📤 Share Invite Link
+            </button>
+
+            <button onClick={()=>{
+              navigator.clipboard?.writeText(`${window.location.origin}?invite=${inviteCode}`).then(()=>alert("Copied!"));
+            }} style={{width:"100%",padding:12,background:"#21262d",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:10}}>
+              📋 Copy Link
+            </button>
+
+            <div style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"9px 12px",fontSize:11,color:"#f59e0b",textAlign:"center",marginBottom:14}}>
+              Anyone with this link gets full access to edit your team
+            </div>
+
+            <button onClick={()=>setShowInviteModal(false)}
+              style={{width:"100%",padding:12,background:"transparent",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,cursor:"pointer",fontWeight:600}}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
