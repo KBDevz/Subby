@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Supabase ─────────────────────────────────────────────────
-// Lazy-initialised so the app works even before credentials are entered
+const SUPABASE_URL = "https://csiqrmzcnqtlxpuayqcq.supabase.co";
+const SUPABASE_KEY = "sb_publishable_wyn6cp6XqwuFDSQbrJBZuQ_EQ3s12F0";
+
 let _supabase = null;
 function getSupabase() {
   if (_supabase) return _supabase;
-  const url = lsGet("scm_sb_url","");
-  const key = lsGet("scm_sb_key","");
+  const url = SUPABASE_URL || lsGet("scm_sb_url","");
+  const key = SUPABASE_KEY || lsGet("scm_sb_key","");
   if (!url || !key) return null;
-  // Try both window.supabase.createClient and window.supabase (some CDN builds differ)
   try {
     const lib = window.supabase;
     if (!lib) return null;
@@ -486,6 +487,194 @@ function SeasonView({ onClose }) {
   );
 }
 
+// ─── Landing Page ─────────────────────────────────────────────
+function LandingPage({ onLogin, onSignup, sbReady }) {
+  const [view, setView]       = useState("home"); // home | login | signup
+  const [email, setEmail]     = useState("");
+  const [pass, setPass]       = useState("");
+  const [name, setName]       = useState("");
+  const [error, setError]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent]       = useState(false);
+
+  const handleLogin = async () => {
+    const sb = getSupabase(); if(!sb){ setError("Service unavailable, try again shortly."); return; }
+    setLoading(true); setError("");
+    const { error: e } = await sb.auth.signInWithPassword({ email, password: pass });
+    setLoading(false);
+    if(e) setError(e.message); else onLogin();
+  };
+
+  const handleSignup = async () => {
+    const sb = getSupabase(); if(!sb){ setError("Service unavailable, try again shortly."); return; }
+    setLoading(true); setError("");
+    const { error: e } = await sb.auth.signUp({ email, password: pass, options:{ data:{ full_name: name } } });
+    setLoading(false);
+    if(e) setError(e.message); else setSent(true);
+  };
+
+  const features = [
+    { icon:"⚽", title:"Live Field View", desc:"Half-field with real formations and tap-to-assign players" },
+    { icon:"🤖", title:"Smart Auto Sub", desc:"AI suggests the fairest swap to equalise playing time" },
+    { icon:"⏱", title:"Sub Alerts", desc:"Audio + vibration alerts so you never miss a rotation" },
+    { icon:"📊", title:"Season Stats", desc:"Track every player's minutes across the whole season" },
+    { icon:"📋", title:"Sub Queue", desc:"Plan your next 3 substitutions in advance" },
+    { icon:"☁️", title:"Cloud Sync", desc:"Your team saves automatically across all your devices" },
+  ];
+
+  if (view === "home") return (
+    <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"#0d1117", minHeight:"100vh", color:"#e6edf3" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Bebas+Neue&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
+      `}</style>
+
+      {/* Nav */}
+      <div style={{ padding:"20px 24px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:"1px solid #21262d" }}>
+        <div>
+          <div style={{ fontSize:10, letterSpacing:3, textTransform:"uppercase", color:"#4ade80", fontWeight:700 }}>⚽ Coach Manager</div>
+          <div style={{ fontSize:22, fontWeight:800, letterSpacing:-0.5, lineHeight:1.1 }}>Subby</div>
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={()=>setView("login")} style={{ background:"transparent", border:"1px solid #30363d", color:"#8b949e", borderRadius:10, padding:"9px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Log In</button>
+          <button onClick={()=>setView("signup")} style={{ background:"#4ade80", border:"none", color:"#0d1117", borderRadius:10, padding:"9px 18px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Sign Up Free</button>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <div style={{ padding:"64px 24px 48px", textAlign:"center", maxWidth:540, margin:"0 auto", animation:"fadeUp .6s ease" }}>
+        <div style={{ display:"inline-block", background:"#4ade8018", border:"1px solid #4ade8033", borderRadius:20, padding:"6px 16px", fontSize:11, color:"#4ade80", fontWeight:700, letterSpacing:1.5, textTransform:"uppercase", marginBottom:20 }}>
+          Built for soccer coaches
+        </div>
+        <div style={{ fontSize:48, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:2, lineHeight:1, marginBottom:16, background:"linear-gradient(135deg,#fff 40%,#4ade80)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
+          Manage Your Team Like a Pro
+        </div>
+        <div style={{ fontSize:16, color:"#8b949e", lineHeight:1.7, marginBottom:36 }}>
+          Real-time substitution management, fairness tracking, and smart auto-subs — all in one sideline app.
+        </div>
+        <div style={{ display:"flex", gap:12, justifyContent:"center", flexWrap:"wrap" }}>
+          <button onClick={()=>setView("signup")} style={{ background:"#4ade80", border:"none", color:"#0d1117", borderRadius:12, padding:"14px 32px", fontSize:16, fontWeight:800, cursor:"pointer", letterSpacing:0.3 }}>
+            Get Started Free →
+          </button>
+          <button onClick={()=>setView("login")} style={{ background:"#21262d", border:"1px solid #30363d", color:"#e6edf3", borderRadius:12, padding:"14px 28px", fontSize:15, fontWeight:600, cursor:"pointer" }}>
+            Log In
+          </button>
+        </div>
+      </div>
+
+      {/* Field preview graphic */}
+      <div style={{ padding:"0 24px 48px", display:"flex", justifyContent:"center" }}>
+        <div style={{ position:"relative", width:"100%", maxWidth:320, paddingBottom:"38%", borderRadius:16, overflow:"hidden", boxShadow:"0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px #30363d", animation:"fadeUp .8s ease" }}>
+          <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg,#1e5c20,#174d19)" }}>
+            {[...Array(5)].map((_,i)=><div key={i} style={{ position:"absolute", top:`${i*20}%`, height:"10%", left:0, right:0, background:"rgba(255,255,255,0.03)" }}/>)}
+          </div>
+          <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%" }} viewBox="0 0 100 40" preserveAspectRatio="xMidYMid meet">
+            <rect x="2" y="1" width="96" height="38" rx="1" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="0.6"/>
+            <line x1="2" y1="1" x2="98" y2="1" stroke="rgba(255,255,255,0.4)" strokeWidth="0.6"/>
+            <rect x="22" y="27" width="56" height="12" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.5"/>
+            <rect x="40" y="33" width="20" height="6" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5"/>
+          </svg>
+          {/* Sample player dots */}
+          {[{x:50,y:88,r:"GK",c:"#f59e0b"},{x:20,y:65,r:"D",c:"#60a5fa"},{x:50,y:65,r:"D",c:"#60a5fa"},{x:80,y:65,r:"D",c:"#60a5fa"},{x:25,y:42,r:"M",c:"#34d399"},{x:50,y:38,r:"M",c:"#34d399"},{x:75,y:42,r:"M",c:"#34d399"},{x:50,y:18,r:"F",c:"#f87171"}].map((p,i)=>(
+            <div key={i} style={{ position:"absolute", left:`${p.x}%`, top:`${p.y*(38/100)}%`, transform:"translate(-50%,-50%)", width:14, height:14, borderRadius:"50%", background:p.c, border:"1.5px solid rgba(255,255,255,0.8)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:5, fontWeight:800, color:"white" }}>{p.r}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Features */}
+      <div style={{ padding:"0 24px 64px", maxWidth:560, margin:"0 auto" }}>
+        <div style={{ fontSize:11, color:"#8b949e", textTransform:"uppercase", letterSpacing:2, fontWeight:700, textAlign:"center", marginBottom:24 }}>Everything you need on the sideline</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          {features.map((f,i)=>(
+            <div key={i} style={{ background:"#161b22", border:"1px solid #21262d", borderRadius:14, padding:"16px 14px", animation:`fadeUp ${0.4+i*0.1}s ease` }}>
+              <div style={{ fontSize:24, marginBottom:8 }}>{f.icon}</div>
+              <div style={{ fontSize:13, fontWeight:700, marginBottom:4 }}>{f.title}</div>
+              <div style={{ fontSize:11, color:"#6b7280", lineHeight:1.5 }}>{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div style={{ padding:"32px 24px 64px", textAlign:"center", borderTop:"1px solid #21262d" }}>
+        <div style={{ fontSize:28, fontWeight:800, marginBottom:8 }}>Ready to coach smarter?</div>
+        <div style={{ fontSize:14, color:"#8b949e", marginBottom:24 }}>Free to use. No credit card required.</div>
+        <button onClick={()=>setView("signup")} style={{ background:"#4ade80", border:"none", color:"#0d1117", borderRadius:12, padding:"14px 36px", fontSize:16, fontWeight:800, cursor:"pointer" }}>
+          Create Free Account →
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Auth forms ──────────────────────────────────────────────
+  return (
+    <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"#0d1117", minHeight:"100vh", color:"#e6edf3", display:"flex", flexDirection:"column" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0}input:focus{border-color:#4ade80!important;outline:none}input::placeholder{color:#4b5563}@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {/* Back */}
+      <div style={{ padding:"16px 24px" }}>
+        <button onClick={()=>{setView("home");setError("");setSent(false);}} style={{ background:"transparent", border:"none", color:"#8b949e", fontSize:13, cursor:"pointer", padding:0 }}>← Back</button>
+      </div>
+
+      <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 24px 48px" }}>
+        <div style={{ width:"100%", maxWidth:400, animation:"fadeUp .3s ease" }}>
+
+          {/* Logo */}
+          <div style={{ textAlign:"center", marginBottom:32 }}>
+            <div style={{ fontSize:10, letterSpacing:3, textTransform:"uppercase", color:"#4ade80", fontWeight:700, marginBottom:4 }}>⚽ Coach Manager</div>
+            <div style={{ fontSize:36, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:2 }}>Subby</div>
+          </div>
+
+          <div style={{ background:"#161b22", border:"1px solid #30363d", borderRadius:20, padding:"32px 28px" }}>
+            {sent ? (
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:40, marginBottom:16 }}>📧</div>
+                <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>Check your email!</div>
+                <div style={{ fontSize:13, color:"#8b949e", lineHeight:1.6 }}>We sent a confirmation link to<br/><strong style={{ color:"#e6edf3" }}>{email}</strong><br/>Click it to activate your account then come back and log in.</div>
+                <button onClick={()=>{setSent(false);setView("login");}} style={{ marginTop:24, width:"100%", padding:13, background:"#4ade80", border:"none", borderRadius:12, color:"#0d1117", fontSize:15, fontWeight:700, cursor:"pointer" }}>Go to Log In</button>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize:22, fontWeight:800, marginBottom:4 }}>{view==="login" ? "Welcome back" : "Create account"}</div>
+                <div style={{ fontSize:13, color:"#8b949e", marginBottom:24 }}>{view==="login" ? "Log in to access your team" : "Save your team across all devices"}</div>
+
+                {error && <div style={{ background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", borderRadius:8, padding:"10px 12px", fontSize:12, color:"#f87171", marginBottom:16 }}>{error}</div>}
+
+                {view==="signup" && (
+                  <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name (e.g. Coach Keith)"
+                    style={{ width:"100%", background:"#0d1117", border:"1px solid #30363d", borderRadius:10, padding:"12px 14px", color:"#e6edf3", fontSize:14, marginBottom:10 }}/>
+                )}
+                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email address" type="email"
+                  style={{ width:"100%", background:"#0d1117", border:"1px solid #30363d", borderRadius:10, padding:"12px 14px", color:"#e6edf3", fontSize:14, marginBottom:10 }}/>
+                <input value={pass} onChange={e=>setPass(e.target.value)} placeholder={view==="login"?"Password":"Password (min 6 characters)"} type="password"
+                  onKeyDown={e=>e.key==="Enter"&&(view==="login"?handleLogin():handleSignup())}
+                  style={{ width:"100%", background:"#0d1117", border:"1px solid #30363d", borderRadius:10, padding:"12px 14px", color:"#e6edf3", fontSize:14, marginBottom:20 }}/>
+
+                <button
+                  onClick={view==="login"?handleLogin:handleSignup}
+                  disabled={loading||!email||!pass||(view==="signup"&&pass.length<6)||!sbReady}
+                  style={{ width:"100%", padding:14, background:loading||!email||!pass||!sbReady?"#21262d":"#4ade80", border:"none", borderRadius:12, color:loading||!email||!pass||!sbReady?"#4b5563":"#0d1117", fontSize:15, fontWeight:700, cursor:"pointer" }}>
+                  {!sbReady?"Connecting...":(loading?(view==="login"?"Logging in…":"Creating account…"):(view==="login"?"Log In →":"Create Account & Get Started →"))}
+                </button>
+
+                <div style={{ textAlign:"center", marginTop:16, fontSize:13, color:"#6b7280" }}>
+                  {view==="login" ? "Don't have an account?" : "Already have an account?"}
+                  {" "}
+                  <button onClick={()=>{setView(view==="login"?"signup":"login");setError("");}} style={{ background:"none", border:"none", color:"#4ade80", fontWeight:700, cursor:"pointer", fontSize:13 }}>
+                    {view==="login"?"Sign up free":"Log in"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────
 export default function App() {
   // ── Team state (must be first — auth block references these) ─
@@ -500,11 +689,9 @@ export default function App() {
   const [autoSub,setAutoSub]     = useState(()=>lsGet("scm_autoSub",false));
 
   // ── Auth & cloud ─────────────────────────────────────────────
-  const [sbUrl,setSbUrl]       = useState(()=>lsGet("scm_sb_url",""));
-  const [sbKey,setSbKey]       = useState(()=>lsGet("scm_sb_key",""));
-  const [sbReady,setSbReady]   = useState(false);   // supabase SDK loaded
+  const [sbReady,setSbReady]   = useState(false);
   const [user,setUser]         = useState(null);
-  const [authView,setAuthView] = useState(null);    // null | "login" | "signup" | "setup"
+  const [authView,setAuthView] = useState(null);
   const [authEmail,setAuthEmail]   = useState("");
   const [authPass,setAuthPass]     = useState("");
   const [authName,setAuthName]     = useState("");
@@ -512,6 +699,7 @@ export default function App() {
   const [authLoading,setAuthLoading] = useState(false);
   const [cloudSaving,setCloudSaving] = useState(false);
   const [lastSaved,setLastSaved]   = useState(null);
+  const [appReady,setAppReady]     = useState(false); // true once session check done
 
   // Load Supabase SDK from CDN once
   useEffect(()=>{
@@ -523,26 +711,23 @@ export default function App() {
     document.head.appendChild(s);
   },[]);
 
-  // Once SDK ready + credentials saved, restore session
+  // Once SDK ready, restore session
   useEffect(()=>{
-    if(!sbReady||!sbUrl||!sbKey) return;
+    if(!sbReady) return;
     const sb=getSupabase();
-    if(!sb) return;
+    if(!sb){ setAppReady(true); return; }
 
-    // Handle email confirmation redirect — Supabase puts tokens in the URL hash
-    const hash = window.location.hash;
-    if(hash && (hash.includes("access_token") || hash.includes("type=signup") || hash.includes("type=recovery"))) {
+    const hash=window.location.hash;
+    if(hash&&(hash.includes("access_token")||hash.includes("type=signup")||hash.includes("type=recovery"))){
       sb.auth.getSession().then(({data})=>{
-        if(data?.session?.user){
-          setUser(data.session.user);
-          setAuthView(null);
-          // Clean up the URL
-          window.history.replaceState(null,"",window.location.pathname);
-        }
+        if(data?.session?.user){ setUser(data.session.user); }
+        setAppReady(true);
+        window.history.replaceState(null,"",window.location.pathname);
       });
     } else {
       sb.auth.getSession().then(({data})=>{
         if(data?.session?.user) setUser(data.session.user);
+        setAppReady(true);
       });
     }
 
@@ -551,7 +736,7 @@ export default function App() {
       if(session?.user) setAuthView(null);
     });
     return()=>subscription.unsubscribe();
-  },[sbReady,sbUrl,sbKey]);
+  },[sbReady]);
 
   // Load team from cloud when user logs in
   useEffect(()=>{
@@ -837,7 +1022,19 @@ export default function App() {
     else navigator.clipboard?.writeText(lines).then(()=>alert("Copied!")).catch(()=>alert(lines));
   };
 
-  // ── RENDER ──────────────────────────────────────────────────
+  // ── Show landing page if not logged in ──────────────────────
+  if(!appReady) return (
+    <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"#0d1117", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:"#4ade80" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontSize:48, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:3, marginBottom:8 }}>⚽ Subby</div>
+        <div style={{ fontSize:12, color:"#4b5563", animation:"pulse 1.5s ease infinite" }}>Loading…</div>
+      </div>
+    </div>
+  );
+
+  if(!user) return <LandingPage sbReady={sbReady} onLogin={()=>{}} onSignup={()=>{}}/>;
+
+  // ── MAIN APP (logged in) ─────────────────────────────────────
   return (
     <div style={{fontFamily:"'DM Sans',system-ui,sans-serif",background:"#0d1117",minHeight:"100vh",color:"#e6edf3",maxWidth:480,margin:"0 auto"}}>
       <style>{`
@@ -867,23 +1064,15 @@ export default function App() {
                 <div style={{fontSize:38,fontFamily:"'Bebas Neue',sans-serif",letterSpacing:2,lineHeight:1,color:gameOver?"#4ade80":"white"}}>{fmt(halfDisplay)}</div>
               </div>
             )}
-            {/* Auth badge */}
-            {user ? (
-              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <div style={{width:7,height:7,borderRadius:"50%",background:cloudSaving?"#f59e0b":"#4ade80"}}/>
-                  <span style={{fontSize:10,color:"#8b949e",maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</span>
-                  <button onClick={handleLogout} style={{background:"#21262d",border:"1px solid #30363d",color:"#8b949e",borderRadius:6,padding:"3px 8px",fontSize:10,cursor:"pointer",fontWeight:600}}>Out</button>
-                </div>
-                {cloudSaving&&<div style={{fontSize:9,color:"#f59e0b",letterSpacing:0.5}}>Saving…</div>}
-                {!cloudSaving&&lastSaved&&<div style={{fontSize:9,color:"#4b5563"}}>✓ Saved</div>}
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:7,height:7,borderRadius:"50%",background:cloudSaving?"#f59e0b":"#4ade80"}}/>
+                <span style={{fontSize:10,color:"#8b949e",maxWidth:100,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.email}</span>
+                <button onClick={handleLogout} style={{background:"#21262d",border:"1px solid #30363d",color:"#8b949e",borderRadius:6,padding:"3px 8px",fontSize:10,cursor:"pointer",fontWeight:600}}>Out</button>
               </div>
-            ) : (
-              <button onClick={()=>setAuthView("login")}
-                style={{background:"#4ade8022",border:"1px solid #4ade80",color:"#4ade80",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>
-                🔐 Login
-              </button>
-            )}
+              {cloudSaving&&<div style={{fontSize:9,color:"#f59e0b"}}>Saving…</div>}
+              {!cloudSaving&&lastSaved&&<div style={{fontSize:9,color:"#4b5563"}}>✓ Saved</div>}
+            </div>
             {phase==="field"&&<button onClick={()=>setPhase("setup")} style={{background:"#21262d",border:"1px solid #30363d",color:"#8b949e",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer"}}>← Back</button>}
           </div>
         </div>
@@ -1289,15 +1478,7 @@ create policy "Own team" on teams
                   <button onClick={()=>setAuthView("signup")} style={{flex:1,padding:11,background:"transparent",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,cursor:"pointer",fontWeight:600}}>
                     Create Account
                   </button>
-                  <button onClick={()=>setAuthView("setup")} style={{flex:1,padding:11,background:"transparent",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,cursor:"pointer",fontWeight:600}}>
-                    ⚙️ Setup
-                  </button>
                 </div>
-                {!lsGet("scm_sb_url","")&&(
-                  <div style={{marginTop:12,background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"9px 12px",fontSize:11,color:"#f59e0b",textAlign:"center"}}>
-                    Supabase not configured yet — tap ⚙️ Setup first
-                  </div>
-                )}
               </>
             )}
 
@@ -1318,15 +1499,9 @@ create policy "Own team" on teams
                   style={{width:"100%",padding:13,background:authLoading||!authEmail||authPass.length<6?"#21262d":"#4ade80",border:"none",borderRadius:12,color:authLoading||!authEmail||authPass.length<6?"#4b5563":"#0d1117",fontSize:15,fontWeight:700,cursor:"pointer"}}>
                   {authLoading?"Creating account…":"Create Account & Save Team"}
                 </button>
-                <button onClick={()=>setAuthView("login")} style={{width:"100%",marginTop:10,padding:11,background:"transparent",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,cursor:"pointer",fontWeight:600}}>
-                  Already have an account
-                </button>
-              </>
-            )}
-
-          </div>
-        </div>
-      )}
+      {showFB&&<FormationBuilder outfieldCount={outfieldCount} onSave={saveCustomFormation} onClose={()=>setShowFB(false)}/>}
+      {pickerPos!==null&&<PickerSheet posIdx={pickerPos} positions={positions} assigned={assigned} roster={roster} numbers={numbers} notes={notes}
+        getTotal={getTotal} getStint={getStint} onAssign={handleAssign} onClear={handleClear} onClose={()=>setPickerPos(null)} phase={phase}/>}
     </div>
   );
 }
