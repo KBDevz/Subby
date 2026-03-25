@@ -528,11 +528,27 @@ export default function App() {
     if(!sbReady||!sbUrl||!sbKey) return;
     const sb=getSupabase();
     if(!sb) return;
-    sb.auth.getSession().then(({data})=>{
-      if(data?.session?.user) setUser(data.session.user);
-    });
-    const {data:{subscription}}=sb.auth.onAuthStateChange((_,session)=>{
+
+    // Handle email confirmation redirect — Supabase puts tokens in the URL hash
+    const hash = window.location.hash;
+    if(hash && (hash.includes("access_token") || hash.includes("type=signup") || hash.includes("type=recovery"))) {
+      sb.auth.getSession().then(({data})=>{
+        if(data?.session?.user){
+          setUser(data.session.user);
+          setAuthView(null);
+          // Clean up the URL
+          window.history.replaceState(null,"",window.location.pathname);
+        }
+      });
+    } else {
+      sb.auth.getSession().then(({data})=>{
+        if(data?.session?.user) setUser(data.session.user);
+      });
+    }
+
+    const {data:{subscription}}=sb.auth.onAuthStateChange((_event,session)=>{
       setUser(session?.user||null);
+      if(session?.user) setAuthView(null);
     });
     return()=>subscription.unsubscribe();
   },[sbReady,sbUrl,sbKey]);
