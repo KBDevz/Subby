@@ -1497,9 +1497,6 @@ create policy "Own team" on teams
                   onKeyDown={e=>e.key==="Enter"&&handleSignup()}
                   style={{width:"100%",background:"#0d1117",border:"1px solid #30363d",borderRadius:8,padding:"11px 12px",color:"#e6edf3",fontSize:14,marginBottom:16}}/>
                 <button onClick={handleSignup} disabled={authLoading||!authEmail||!authPass||authPass.length<6}
-                  style={{width:"100%",padding:13,background:authLoading||!authEmail||authPass.length<6?"#21262d":"#4ade80",border:"none",borderRadius:12,color:authLoading||!authEmail||authPass.length<6?"#4b5563":"#0d1117",fontSize:15,fontWeight:700,cursor:"pointer"}}>
-                  {authLoading?"Creating account…":"Create Account & Save Team"}
-                </button>
       {showFB&&<FormationBuilder outfieldCount={outfieldCount} onSave={saveCustomFormation} onClose={()=>setShowFB(false)}/>}
       {pickerPos!==null&&<PickerSheet posIdx={pickerPos} positions={positions} assigned={assigned} roster={roster} numbers={numbers} notes={notes}
         getTotal={getTotal} getStint={getStint} onAssign={handleAssign} onClear={handleClear} onClose={()=>setPickerPos(null)} phase={phase}/>}
