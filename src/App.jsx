@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import "./index.css";
 
 // ─── Supabase ─────────────────────────────────────────────────
 const SUPABASE_URL = "https://csiqrmzcnqtlxpuayqcq.supabase.co";
@@ -533,12 +534,6 @@ function LandingPage({ onLogin, onSignup, sbReady }) {
 
   if (view === "home") return (
     <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"#0d1117", minHeight:"100vh", color:"#e6edf3" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Bebas+Neue&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.6}}
-      `}</style>
 
       {/* Nav */}
       <div style={{ padding:"20px 24px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:"1px solid #21262d" }}>
@@ -620,7 +615,6 @@ function LandingPage({ onLogin, onSignup, sbReady }) {
   // ── Auth forms ──────────────────────────────────────────────
   return (
     <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"#0d1117", minHeight:"100vh", color:"#e6edf3", display:"flex", flexDirection:"column" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Bebas+Neue&display=swap');*{box-sizing:border-box;margin:0;padding:0}input:focus{border-color:#4ade80!important;outline:none}input::placeholder{color:#4b5563}@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
       {/* Back */}
       <div style={{ padding:"16px 24px" }}>
@@ -1123,7 +1117,6 @@ export default function App() {
   // ── Show landing page if not logged in ──────────────────────
   if(!appReady) return (
     <div style={{ fontFamily:"'DM Sans',system-ui,sans-serif", background:"#0d1117", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:"#4ade80" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign:"center" }}>
         <div style={{ fontSize:48, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:3, marginBottom:12 }}>⚽ Subby</div>
         <div style={{ width:24, height:24, border:"3px solid #21262d", borderTopColor:"#4ade80", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto" }}/>
@@ -1136,18 +1129,6 @@ export default function App() {
   // ── MAIN APP (logged in) ─────────────────────────────────────
   return (
     <div style={{fontFamily:"'DM Sans',system-ui,sans-serif",background:"#0d1117",minHeight:"100vh",color:"#e6edf3",maxWidth:480,margin:"0 auto"}}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@500&family=Bebas+Neue&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        input,select,button,textarea{font-family:inherit}
-        input:focus,select:focus,textarea:focus{border-color:#4ade80!important;outline:none}
-        input::placeholder,textarea::placeholder{color:#4b5563}
-        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#30363d;border-radius:2px}
-        @keyframes bloop{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.18)}}
-        @keyframes sheetUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
-        @keyframes pageIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes alertPulse{0%,100%{opacity:1}50%{opacity:0.82}}
-      `}</style>
 
       {/* HEADER */}
       <div style={{background:"#0d1117",borderBottom:"1px solid #21262d",padding:"12px 20px 10px",position:"sticky",top:0,zIndex:100}}>
