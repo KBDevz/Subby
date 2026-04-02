@@ -712,10 +712,10 @@ export default function App() {
   const [authLoading,setAuthLoading] = useState(false);
   const [cloudSaving,setCloudSaving] = useState(false);
   const [lastSaved,setLastSaved]   = useState(null);
-  const [inviteCode,setInviteCode] = useState(null);  // current team's invite code
-  const [teamOwnerId,setTeamOwnerId] = useState(null); // owner of shared team
+  const [inviteCode,setInviteCode] = useState(null);
+  const [teamOwnerId,setTeamOwnerId] = useState(null);
   const [showInviteModal,setShowInviteModal] = useState(false);
-  const [appReady,setAppReady]     = useState(false); // true once session check done
+  const [appReady,setAppReady]     = useState(false);
 
   // Load Supabase SDK from CDN once
   useEffect(()=>{
@@ -759,22 +759,18 @@ export default function App() {
     if(!user) return;
     const sb=getSupabase(); if(!sb) return;
 
-    // Check if there's a pending invite code in localStorage
     const pendingInvite = lsGet("scm_pending_invite","");
 
     if(pendingInvite) {
-      // Join team via invite code
       sb.from("teams").select("*").eq("invite_code", pendingInvite).single()
         .then(async ({data, error}) => {
           if(data && !error) {
-            // Add this user to the team's members array
             const members = data.members || [];
             if(!members.includes(user.id)) {
               await sb.from("teams").update({
                 members: [...members, user.id]
               }).eq("id", data.id);
             }
-            // Load the team data
             setTeamName(data.team_name||"");
             if(data.player_count) setPC(data.player_count);
             if(data.names)      setNames(data.names);
@@ -792,7 +788,6 @@ export default function App() {
       return;
     }
 
-    // Normal load — own team first, then check member teams
     sb.from("teams").select("*").eq("user_id",user.id).single()
       .then(async ({data,error})=>{
         if(data&&!error){
@@ -809,7 +804,6 @@ export default function App() {
           setTeamOwnerId(data.user_id);
           setLastSaved(data.updated_at);
         } else {
-          // Maybe this user is a member of someone else's team
           sb.from("teams").select("*").contains("members",[user.id]).single()
             .then(({data:td})=>{
               if(td){
@@ -855,7 +849,6 @@ export default function App() {
 
   const generateInviteLink = async () => {
     const sb = getSupabase(); if(!sb) return;
-    // Generate a random 8-char code
     const code = Math.random().toString(36).substring(2,10).toUpperCase();
     const {error} = await sb.from("teams")
       .update({ invite_code: code })
@@ -874,12 +867,16 @@ export default function App() {
       navigator.clipboard?.writeText(url).then(()=>alert("Link copied!"));
     }
   };
+
+  // ── FIXED: handleLogin restored as a proper async function ───
+  const handleLogin = async()=>{
     const sb=getSupabase(); if(!sb){setAuthError("Supabase not configured.");return;}
     setAuthLoading(true); setAuthError("");
     const {error}=await sb.auth.signInWithPassword({email:authEmail,password:authPass});
     setAuthLoading(false);
     if(error)setAuthError(error.message); else setAuthView(null);
   };
+
   const handleSignup = async()=>{
     const sb=getSupabase(); if(!sb){setAuthError("Supabase not configured.");return;}
     setAuthLoading(true); setAuthError("");
@@ -887,15 +884,16 @@ export default function App() {
     setAuthLoading(false);
     if(error)setAuthError(error.message); else { setAuthView(null); saveToCloud(); }
   };
+
   const handleLogout = async()=>{
     const sb=getSupabase(); if(!sb) return;
     await sb.auth.signOut(); setUser(null);
   };
+
   const saveCredentials = ()=>{
-    lsSet("scm_sb_url",sbUrl.trim());
-    lsSet("scm_sb_key",sbKey.trim());
+    lsSet("scm_sb_url",SUPABASE_URL);
+    lsSet("scm_sb_key",SUPABASE_KEY);
     resetSupabaseClient();
-    // Force init immediately so login screen can use it
     getSupabase();
     setAuthView("login");
   };
@@ -911,7 +909,7 @@ export default function App() {
   useEffect(()=>lsSet("scm_customForms",customForms),[customForms]);
   useEffect(()=>lsSet("scm_autoSub",autoSub),[autoSub]);
 
-  // Debounced cloud save — fires 2s after last change when logged in
+  // Debounced cloud save
   const cloudSaveTimer = useRef(null);
   useEffect(()=>{
     if(!user) return;
@@ -929,7 +927,7 @@ export default function App() {
   const [isRunning,setIsRunning] = useState(false);
   const [subCountdown,setSC]     = useState(0);
   const [alertActive,setAlertActive] = useState(false);
-  const [autoSubProposal,setAutoSubProposal] = useState(null); // {posIdx,outId,inId}
+  const [autoSubProposal,setAutoSubProposal] = useState(null);
   const [stats,setStats]         = useState({});
   const [subLog,setSubLog]       = useState([]);
   const [subQueue,setSubQueue]   = useState([]);
@@ -940,10 +938,9 @@ export default function App() {
   const timerRef    = useRef(null);
   const wakeLockRef = useRef(null);
   const savedGameRef = useRef(false);
-  // Refs so the interval always sees fresh values without stale closures
-  const scRef       = useRef(0);   // mirrors subCountdown
+  const scRef       = useRef(0);
   const autoSubRef  = useRef(autoSub);
-  const computeRef  = useRef(null); // set after computeBestSwap is defined
+  const computeRef  = useRef(null);
 
   useEffect(()=>{ autoSubRef.current = autoSub; }, [autoSub]);
 
@@ -964,12 +961,10 @@ export default function App() {
   const getTotal = useCallback(id=>{ const s=stats[id]; if(!s)return 0; return s.total+(s.startTime!=null?gameTime-s.startTime:0); },[stats,gameTime]);
   const getStint = useCallback(id=>{ const s=stats[id]; if(!s)return 0; return s.startTime!=null?gameTime-s.startTime:0; },[stats,gameTime]);
 
-  // Fairness
   const expectedTime = roster.length>0?(gameTime*playerCount)/roster.length:0;
   const fairness = id=>{ if(expectedTime===0)return"ok"; const r=getTotal(id)/expectedTime; return r<0.55?"low":r<0.78?"warn":"ok"; };
   const fairColor = {ok:"#4ade80",warn:"#f59e0b",low:"#ef4444"};
 
-  // Formation helpers
   const changeFormation = f => { setFormation(f); setAssigned(Array(buildPositions(f).length).fill(null)); };
   const changePlayerCount = n => {
     setPC(n);
@@ -987,13 +982,11 @@ export default function App() {
     if(formation===fStr)changeFormation(builtinEntries[0].f);
   };
 
-  // Wake lock
   useEffect(()=>{
     if(phase==="game"&&isRunning){ acquireWakeLock().then(l=>{wakeLockRef.current=l;}); }
     else{ wakeLockRef.current?.release().catch(()=>{}); wakeLockRef.current=null; }
   },[phase,isRunning]);
 
-  // Timer — alert fires directly inside the interval to avoid stale-closure misses
   useEffect(()=>{
     if(isRunning&&!gameOver){
       timerRef.current=setInterval(()=>{
@@ -1002,7 +995,6 @@ export default function App() {
           const next=Math.max(0,prev-1);
           scRef.current=next;
           if(next===0 && prev>0){
-            // Fire immediately — no useEffect delay
             fireAlert();
             setAlertActive(true);
             if(autoSubRef.current && computeRef.current){
@@ -1031,10 +1023,8 @@ export default function App() {
     return { posIdx: outCandidate.pi, outId: outCandidate.pid, inId: inPlayer.id };
   }, [roster, onField, positions, assigned, getTotal]);
 
-  // Keep ref fresh so interval can call it without stale closures
   useEffect(()=>{ computeRef.current = computeBestSwap; }, [computeBestSwap]);
 
-  // Save to season on game over (once)
   useEffect(()=>{
     if(gameOver&&!savedGameRef.current&&roster.length>0&&gameTime>0){
       savedGameRef.current=true;
@@ -1044,7 +1034,6 @@ export default function App() {
     }
   },[gameOver]);
 
-  // Assign
   const handleAssign = (posIdx,playerId)=>{
     if(phase==="game"){
       const outId=assigned[posIdx], role=positions[posIdx].role;
@@ -1083,12 +1072,10 @@ export default function App() {
     setAssigned(prev=>{const n=[...prev];n[posIdx]=null;return n;}); setPickerPos(null);
   };
 
-  // Sub queue
   const addToQueue = item=>{ if(subQueue.length<3)setSubQueue(prev=>[...prev,item]); };
   const removeFromQueue = i=>setSubQueue(prev=>prev.filter((_,j)=>j!==i));
   const executeQueued = q=>handleAssign(q.posIdx,q.inId);
 
-  // Game controls
   const startGame = ()=>{
     const init={};
     roster.forEach(p=>{init[p.id]={total:0,startTime:null,positions:{}};});
@@ -1103,7 +1090,6 @@ export default function App() {
     setAlertActive(false); setShowStats(false); setShowSeason(false);
   };
 
-  // Share current game report
   const shareReport = ()=>{
     const lines=[`${teamName} · Game Report`,`Formation: ${formation}`,"",
       ...roster.slice().sort((a,b)=>getTotal(b.id)-getTotal(a.id)).map(p=>{
@@ -1235,7 +1221,6 @@ export default function App() {
       {(phase==="field"||phase==="game")&&!showStats&&!showSeason&&(
         <div style={{animation:"pageIn .3s ease"}}>
 
-          {/* Alert banner */}
           {alertActive&&(
             <div style={{background:"linear-gradient(90deg,#d97706,#dc2626)",padding:"14px 16px",animation:"alertPulse 1s ease-in-out infinite"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom: autoSubProposal ? 10 : 0}}>
@@ -1248,7 +1233,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Auto-sub proposal card */}
               {autoSubProposal&&(()=>{
                 const inP  = roster.find(p=>p.id===autoSubProposal.inId);
                 const outP = roster.find(p=>p.id===autoSubProposal.outId);
@@ -1283,7 +1267,6 @@ export default function App() {
                 );
               })()}
 
-              {/* Queued sub hint when no auto-sub */}
               {!autoSubProposal&&subQueue.length>0&&(
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(0,0,0,0.2)",borderRadius:10,padding:"8px 12px",marginTop:8}}>
                   <div style={{fontSize:12,color:"rgba(255,255,255,0.85)"}}>
@@ -1295,7 +1278,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Controls */}
           <div style={{padding:"12px 16px",borderBottom:"1px solid #21262d",display:"flex",alignItems:"center",gap:10}}>
             {phase==="field"?(
               <button onClick={startGame} style={{flex:1,padding:"11px 0",background:"#4ade80",border:"none",borderRadius:10,color:"#0d1117",fontSize:15,fontWeight:700,cursor:"pointer"}}>🏁 Start Game</button>
@@ -1327,7 +1309,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Tabs */}
           <div style={{display:"flex",borderBottom:"1px solid #21262d"}}>
             {[["field","⚽ Field"],["queue",`📋 Queue${subQueue.length?` (${subQueue.length})`:""}`],["subs","🔄 Subs"]].map(([t,lbl])=>(
               <button key={t} onClick={()=>setTab(t)}
@@ -1337,7 +1318,6 @@ export default function App() {
             ))}
           </div>
 
-          {/* Field tab */}
           {tab==="field"&&(
             <div style={{padding:"14px 16px 32px"}}>
               <div style={{marginBottom:14}}>
@@ -1347,7 +1327,6 @@ export default function App() {
               </div>
               <HalfField positions={positions} assigned={assigned} roster={roster} numbers={numbers}
                 onTapPos={setPickerPos} alertActive={alertActive} getTotal={getTotal} getStint={getStint} phase={phase}/>
-              {/* Legend */}
               <div style={{display:"flex",gap:12,marginTop:12,justifyContent:"center"}}>
                 {Object.entries(ROLE_COLOR).map(([role,col])=>(
                   <div key={role} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#6b7280"}}>
@@ -1355,7 +1334,6 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              {/* Bench */}
               {roster.length>0&&(
                 <div style={{marginTop:18}}>
                   <div style={{fontSize:10,color:"#8b949e",textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,marginBottom:10}}>Bench · {bench.length}</div>
@@ -1396,7 +1374,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Queue tab */}
           {tab==="queue"&&(
             <div style={{padding:"14px 16px"}}>
               <SubQueuePanel queue={subQueue} roster={roster} numbers={numbers} positions={positions}
@@ -1404,7 +1381,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Subs tab */}
           {tab==="subs"&&(
             <div style={{padding:"16px 16px 32px"}}>
               {subLog.length===0
@@ -1493,27 +1469,21 @@ export default function App() {
               <div style={{fontSize:20,fontWeight:800,marginBottom:6}}>Invite a Coach</div>
               <div style={{fontSize:13,color:"#8b949e",lineHeight:1.6}}>Share this link with your co-coach.<br/>They'll get full access to <strong style={{color:"#e6edf3"}}>{teamName||"your team"}</strong>.</div>
             </div>
-
-            {/* Link display */}
             <div style={{background:"#0d1117",border:"1px solid #30363d",borderRadius:10,padding:"12px 14px",marginBottom:16,fontFamily:"monospace",fontSize:12,color:"#a78bfa",wordBreak:"break-all",textAlign:"center"}}>
               {`${window.location.origin}?invite=${inviteCode}`}
             </div>
-
             <button onClick={shareInviteLink}
               style={{width:"100%",padding:14,background:"#7c3aed",border:"none",borderRadius:12,color:"white",fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:10}}>
               📤 Share Invite Link
             </button>
-
             <button onClick={()=>{
               navigator.clipboard?.writeText(`${window.location.origin}?invite=${inviteCode}`).then(()=>alert("Copied!"));
             }} style={{width:"100%",padding:12,background:"#21262d",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:10}}>
               📋 Copy Link
             </button>
-
             <div style={{background:"rgba(245,158,11,0.1)",border:"1px solid rgba(245,158,11,0.3)",borderRadius:8,padding:"9px 12px",fontSize:11,color:"#f59e0b",textAlign:"center",marginBottom:14}}>
               Anyone with this link gets full access to edit your team
             </div>
-
             <button onClick={()=>setShowInviteModal(false)}
               style={{width:"100%",padding:12,background:"transparent",border:"1px solid #30363d",borderRadius:12,color:"#8b949e",fontSize:13,cursor:"pointer",fontWeight:600}}>
               Close
@@ -1524,6 +1494,7 @@ export default function App() {
     </div>
   );
 }
+
 function Section({ label, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
