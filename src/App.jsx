@@ -826,8 +826,7 @@ function LandingPage({ onLogin, sbReady }) {
       {/* Nav */}
       <div style={{ padding:"20px 24px", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:"1px solid #21262d" }}>
         <div>
-          <div style={{ fontSize:10, letterSpacing:3, textTransform:"uppercase", color:"#4ade80", fontWeight:700 }}>⚽ Coach Manager</div>
-          <div style={{ fontSize:22, fontWeight:800, letterSpacing:-0.5, lineHeight:1.1 }}>Subby</div>
+          <div style={{ fontSize:22, fontWeight:800, letterSpacing:-0.5, lineHeight:1.1, color:"#a78bfa" }}>Subby</div>
         </div>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={()=>setView("login")} style={{ background:"transparent", border:"1px solid #30363d", color:"#8b949e", borderRadius:10, padding:"9px 18px", fontSize:13, fontWeight:600, cursor:"pointer" }}>Log In</button>
@@ -914,8 +913,7 @@ function LandingPage({ onLogin, sbReady }) {
 
           {/* Logo */}
           <div style={{ textAlign:"center", marginBottom:32 }}>
-            <div style={{ fontSize:10, letterSpacing:3, textTransform:"uppercase", color:"#4ade80", fontWeight:700, marginBottom:4 }}>⚽ Coach Manager</div>
-            <div style={{ fontSize:36, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:2 }}>Subby</div>
+            <div style={{ fontSize:36, fontFamily:"'Bebas Neue',sans-serif", letterSpacing:2, color:"#a78bfa" }}>Subby</div>
           </div>
 
           <div style={{ background:"#161b22", border:"1px solid #30363d", borderRadius:20, padding:"32px 28px" }}>
